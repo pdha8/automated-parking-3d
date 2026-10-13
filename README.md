@@ -4,7 +4,7 @@ Landing page « Automated Parking » animée en 3D : loader avec le robot, ridea
 d'entrée, parking automatisé en boucle, sélecteur de couleurs, mode nuit, section
 « UHF identification » et défilement section par section.
 
-**[Voir le site en ligne](https://GITHUB_USER.github.io/REPO_NAME/)**
+**[Voir le site en ligne](https://pdha8.github.io/automated-parking-3d/)**
 
 ![Démo du site](docs/images/demo.gif)
 
