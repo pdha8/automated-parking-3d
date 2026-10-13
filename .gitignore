@@ -1,0 +1,11 @@
+node_modules
+dist
+*.log
+.DS_Store
+blender/work
+
+# vidéo de référence (non diffusée)
+original-*.mp4
+*.blend1
+.claude/
+__pycache__/

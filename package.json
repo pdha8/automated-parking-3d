@@ -1,0 +1,23 @@
+{
+  "name": "automated-parking",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Automated Parking — landing page 3D (rendu Blender en vidéo)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/open-sans": "^5.3.0",
+    "@fontsource/poppins": "^5.3.0",
+    "@fontsource/roboto": "^5.3.0",
+    "gsap": "^3.15.0",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  }
+}

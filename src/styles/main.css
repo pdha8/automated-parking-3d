@@ -1,0 +1,980 @@
+/* ==========================================================================
+   Automated Parking — styles
+   Toutes les mesures sont exprimées en "u" = 1 pixel de la maquette vidéo
+   (scène de référence 1280 x 776), mise à l'échelle selon la fenêtre.
+   ========================================================================== */
+
+:root {
+  --vw: 100vw;
+  --vh: 100vh;
+  --u: min(calc(var(--vw) / 1280), calc(var(--vh) / 776));
+  --stage-w: calc(var(--u) * 1280);
+  --stage-h: calc(var(--u) * 776);
+  --gx: max(0px, calc((var(--vw) - var(--stage-w)) / 2));
+
+  --accent: #29bbba;
+  --bg: #d6d4d2;
+  --fg: #0b0b0b;
+  --fg-2: #474747;
+  --desc: #565656;
+  --muted: #8b8b8b;
+  --cursor-ring: rgba(70, 70, 70, 0.85);
+  --cursor-star: #111;
+  --more-bg: #ebebea;
+  --more-fg: #141414;
+
+  --font-title: 'Poppins', 'Montserrat', system-ui, sans-serif;
+  --font-ui: 'Open Sans', system-ui, sans-serif;
+  --font-desc: 'Roboto', 'Open Sans', system-ui, sans-serif;
+  --font-display: 'Montserrat', 'Open Sans', system-ui, sans-serif;
+
+  color-scheme: light;
+}
+
+.is-dark {
+  --bg: #151515;
+  --fg: #ececec;
+  --fg-2: #e8e8e8;
+  --desc: #8c8c8c;
+  --muted: #7f7f7f;
+  --cursor-ring: rgba(225, 225, 225, 0.8);
+  --cursor-star: #f2f2f2;
+  --more-bg: #2a2a2a;
+  --more-fg: #f0f0f0;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: inherit;
+}
+
+@media (pointer: fine) {
+  html.has-cursor,
+  html.has-cursor * {
+    cursor: none !important;
+  }
+}
+
+/* navigation au clavier */
+:focus {
+  outline: none;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.swatch:focus-visible {
+  border-radius: 50%;
+}
+
+/* --------------------------------------------------------------------------
+   Canvas WebGL
+   -------------------------------------------------------------------------- */
+.webgl {
+  position: fixed;
+  inset: 0;
+  width: var(--vw);
+  height: var(--vh);
+  display: block;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Sections
+   -------------------------------------------------------------------------- */
+.sections {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.section {
+  position: absolute;
+  left: 0;
+  width: var(--vw);
+  height: var(--vh);
+  overflow: hidden; /* la vidéo 3D d'une section ne déborde pas sur la suivante */
+}
+
+.section--hero {
+  top: 0;
+}
+
+.section--uhf {
+  top: var(--vh);
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform: translate(-50%, -50%);
+}
+
+.stage > * {
+  pointer-events: auto;
+}
+
+/* ----- Rendu 3D (vidéos Blender en boucle) -----
+   Le cadre rendu = la scène 1280x776 + marges (60 / 40), centré comme .stage */
+.scene {
+  position: absolute;
+  left: calc(50% - var(--u) * 700);
+  top: calc(50% - var(--u) * 428);
+  width: calc(var(--u) * 1400);
+  height: calc(var(--u) * 856);
+  pointer-events: none;
+  will-change: transform;
+  /* bords fondus : raccord invisible avec le fond de page */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 3.5%, #000 96.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 96%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 3.5%, #000 96.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 4%, #000 96%, transparent 100%);
+  mask-composite: intersect;
+}
+
+.scene__videos,
+.scene__videos video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.scene__videos video {
+  display: block;
+  object-fit: fill;
+  opacity: 0;
+  background: transparent;
+}
+
+.scene__videos video.is-active {
+  opacity: 1;
+}
+
+/* vidéos de jour de la borne : Blender ne calcule pas le bas du cadre (vide) ;
+   le bord de la zone calculée est fondu dans le fond de page */
+.scene--gate video:not([data-variant='dark']) {
+  -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent 94.5%);
+  mask-image: linear-gradient(to bottom, #000 90%, transparent 94.5%);
+}
+
+/* ----- Hero ----- */
+.hero__title {
+  position: absolute;
+  left: calc(var(--u) * 136);
+  top: calc(var(--u) * 194.8);
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 800;
+  font-size: calc(var(--u) * 76.4);
+  line-height: calc(var(--u) * 67);
+  letter-spacing: 0;
+  color: var(--fg);
+  white-space: nowrap;
+  /* caractères légèrement condensés : même largeur et même hauteur que la vidéo */
+  transform: scaleX(0.936);
+  transform-origin: 0 0;
+}
+
+.hero__line {
+  display: block;
+}
+
+.hero__line > span {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
+.hero__desc {
+  position: absolute;
+  left: calc(var(--u) * 140);
+  top: calc(var(--u) * 372);
+  margin: 0;
+  width: calc(var(--u) * 290);
+  font-family: var(--font-desc);
+  font-weight: 400;
+  font-size: calc(var(--u) * 13.17);
+  line-height: calc(var(--u) * 18);
+  color: var(--desc);
+}
+
+.cta {
+  position: absolute;
+  left: calc(var(--u) * 141);
+  top: calc(var(--u) * 513);
+  width: calc(var(--u) * 123);
+  height: calc(var(--u) * 38);
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--u) * 19);
+}
+
+.cta__bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: background-color 0.35s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cta__label {
+  position: relative;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 10.6);
+  letter-spacing: calc(var(--u) * 0.15);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.cta:hover .cta__bg {
+  transform: scale(1.06);
+}
+
+/* ----- UHF identification ----- */
+.uhf {
+  position: absolute;
+  left: calc(var(--u) * 721);
+  top: calc(var(--u) * 196.3);
+  width: calc(var(--u) * 426);
+}
+
+.uhf__title {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: calc(var(--u) * 35.35);
+  line-height: calc(var(--u) * 56);
+  letter-spacing: 0;
+  color: var(--fg);
+  white-space: nowrap;
+}
+
+.uhf__body {
+  position: relative;
+  margin-top: calc(var(--u) * 11);
+  height: calc(var(--u) * 100);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 var(--mask-solid, 45%), transparent var(--mask-end, 100%));
+  mask-image: linear-gradient(to bottom, #000 0, #000 var(--mask-solid, 45%), transparent var(--mask-end, 100%));
+}
+
+.uhf__text p {
+  margin: 0 0 calc(var(--u) * 25);
+  font-family: var(--font-ui);
+  font-weight: 400;
+  font-size: calc(var(--u) * 15.57);
+  line-height: calc(var(--u) * 25);
+  color: var(--muted);
+}
+
+.uhf__text .w,
+.uhf__text .ln {
+  white-space: nowrap;
+}
+
+.more {
+  position: absolute;
+  left: calc(var(--u) * 3);
+  top: calc(var(--u) * 159.7);
+  height: calc(var(--u) * 22);
+  padding: 0 calc(var(--u) * 15);
+  border-radius: calc(var(--u) * 11);
+  background: var(--more-bg);
+  color: var(--more-fg);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 9.4);
+  line-height: calc(var(--u) * 22);
+  transition: background-color 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+}
+
+.more:hover {
+  transform: scale(1.05);
+}
+
+/* --------------------------------------------------------------------------
+   Bulle du robot
+   -------------------------------------------------------------------------- */
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  transform-origin: 0 0;
+  will-change: transform, opacity, left, top;
+}
+
+.bubble__box {
+  position: relative;
+  transform: translate(0, -100%);
+  padding: calc(var(--u) * 6) calc(var(--u) * 11) calc(var(--u) * 6) calc(var(--u) * 11);
+  min-width: calc(var(--u) * 113);
+  border-radius: calc(var(--u) * 8);
+  background: #343437;
+  color: #f4f4f4;
+  font-family: var(--font-display);
+  white-space: nowrap;
+  box-shadow:
+    calc(var(--u) * 2) calc(var(--u) * -2.5) 0 0 #f2f2f2,
+    calc(var(--u) * 3) calc(var(--u) * 5) calc(var(--u) * 9) rgba(0, 0, 0, 0.12);
+}
+
+.bubble__box::after {
+  /* petite queue vers le robot */
+  content: '';
+  position: absolute;
+  left: calc(var(--u) * 6);
+  bottom: calc(var(--u) * -9);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: calc(var(--u) * 10) calc(var(--u) * 10) 0 0;
+  border-color: #343437 transparent transparent transparent;
+}
+
+.bubble__plate {
+  font-size: calc(var(--u) * 17.5);
+  line-height: calc(var(--u) * 19);
+  font-weight: 400;
+  letter-spacing: calc(var(--u) * 0.2);
+  min-height: calc(var(--u) * 19);
+}
+
+.bubble__plate b {
+  font-weight: 700;
+}
+
+.bubble__chars {
+  position: relative;
+  display: inline-block;
+}
+
+/* lettres en train de s'effacer, superposées au début de la ligne */
+.bubble__ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.bubble__plate span {
+  transition: opacity 0.06s linear;
+}
+
+.bubble__timer {
+  font-size: calc(var(--u) * 15.4);
+  line-height: calc(var(--u) * 18);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: calc(var(--u) * 0.1);
+  word-spacing: calc(var(--u) * -2);
+}
+
+/* --------------------------------------------------------------------------
+   Navigation
+   -------------------------------------------------------------------------- */
+.nav {
+  position: fixed;
+  z-index: 5;
+  top: calc(var(--u) * 52);
+  left: calc(var(--gx) + var(--u) * 83);
+  right: calc(var(--gx) + var(--u) * 78);
+  height: calc(var(--u) * 34);
+  display: flex;
+  align-items: center;
+}
+
+.nav__logo {
+  display: block;
+  width: calc(var(--u) * 24);
+  height: calc(var(--u) * 34);
+  color: var(--fg);
+  transition: color 0.35s ease, transform 0.3s ease;
+}
+
+.nav__logo svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.logo-g {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.8;
+  stroke-linecap: round;
+}
+
+.logo-star {
+  fill: currentColor;
+}
+
+.nav__links {
+  display: flex;
+  margin-left: calc(var(--u) * 52);
+  gap: calc(var(--u) * 37);
+}
+
+.nav__links a,
+.nav__signin {
+  position: relative;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 10.8);
+  letter-spacing: calc(var(--u) * 0.05);
+  color: var(--fg);
+  transition: color 0.35s ease;
+}
+
+.nav__links a::after,
+.nav__signin::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--u) * -4);
+  height: max(1px, calc(var(--u) * 1.5));
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.4s cubic-bezier(0.6, 0, 0.2, 1);
+}
+
+.nav__links a:hover::after,
+.nav__signin:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.nav__right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 42);
+}
+
+.nav__signin {
+  font-size: calc(var(--u) * 11.6);
+}
+
+.nav__cta {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 90);
+  height: calc(var(--u) * 27);
+  border-radius: calc(var(--u) * 14);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: calc(var(--u) * 7.4);
+  letter-spacing: calc(var(--u) * 0.1);
+  transition: background-color 0.35s ease, transform 0.3s ease;
+}
+
+.nav__cta:hover {
+  transform: scale(1.05);
+}
+
+/* --------------------------------------------------------------------------
+   Barre du bas
+   -------------------------------------------------------------------------- */
+.bottombar {
+  position: fixed;
+  z-index: 5;
+  left: calc(var(--gx) + var(--u) * 140);
+  right: calc(var(--gx) + var(--u) * 77);
+  bottom: calc(var(--u) * 37);
+  height: calc(var(--u) * 46);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.bottombar > * {
+  pointer-events: auto;
+}
+
+.colors {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 9.5);
+  transform: translateY(calc(var(--u) * 5));
+}
+
+.colors__label {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: calc(var(--u) * 13);
+  color: var(--fg-2);
+  margin-right: calc(var(--u) * 0.5);
+  transition: color 0.35s ease;
+}
+
+.swatch {
+  position: relative;
+  width: calc(var(--u) * 15.5);
+  height: calc(var(--u) * 15.5);
+  border-radius: 50%;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.swatch::before {
+  /* zone de clic élargie */
+  content: '';
+  position: absolute;
+  inset: calc(var(--u) * -5);
+  border-radius: 50%;
+}
+
+.swatch--blue {
+  background: radial-gradient(circle at 38% 34%, #3a8fd8 0%, #277bc5 55%, #1f6aae 100%);
+}
+
+.swatch--green {
+  background: radial-gradient(circle at 38% 34%, #3ccc4d 0%, #27b938 55%, #1fa02f 100%);
+}
+
+.swatch--teal {
+  background: radial-gradient(circle at 38% 34%, #3dcccb 0%, #29bbba 55%, #21a3a2 100%);
+}
+
+.swatch--dark {
+  background: radial-gradient(circle at 50% 50%, #0a0a0a 0%, #1b1b1b 30%, #3f3f41 75%, #4a4a4c 100%);
+}
+
+.swatch:hover {
+  transform: scale(1.18);
+}
+
+.socials {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 9);
+}
+
+.socials a {
+  display: block;
+  width: calc(var(--u) * 16.5);
+  height: calc(var(--u) * 16.5);
+  color: var(--fg);
+  transition: transform 0.3s ease, color 0.35s ease;
+}
+
+.socials a:hover {
+  transform: translateY(calc(var(--u) * -2));
+}
+
+.socials svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ic-bg {
+  fill: currentColor;
+}
+
+.ic-cut {
+  fill: var(--bg);
+  transition: fill 0.35s ease;
+}
+
+.ic-ring {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 1.8;
+  transition: stroke 0.35s ease;
+}
+
+.scrollhint {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: calc(var(--u) * 37);
+  width: calc(var(--u) * 26);
+  height: calc(var(--u) * 46);
+  margin-left: calc(var(--u) * -13);
+  border-radius: calc(var(--u) * 13);
+  border: max(1.5px, calc(var(--u) * 2)) solid var(--fg);
+  transition: border-color 0.35s ease, border-width 0.25s ease, transform 0.3s ease;
+}
+
+.scrollhint__dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--u) * 9);
+  height: calc(var(--u) * 9);
+  margin: calc(var(--u) * -4.5) 0 0 calc(var(--u) * -4.5);
+  border-radius: 50%;
+  background: var(--fg);
+  transition: background-color 0.35s ease, transform 0.45s cubic-bezier(0.5, 0, 0.2, 1);
+}
+
+.scrollhint:hover {
+  border-width: max(2px, calc(var(--u) * 3));
+}
+
+.scrollhint:hover .scrollhint__dot {
+  transform: translateY(calc(var(--u) * 10));
+}
+
+.is-last .scrollhint:hover .scrollhint__dot {
+  transform: translateY(calc(var(--u) * -10));
+}
+
+/* --------------------------------------------------------------------------
+   Loader
+   -------------------------------------------------------------------------- */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  /* léger horizon à mi-hauteur du robot, comme dans la vidéo */
+  background: linear-gradient(to bottom, #dcdcdc 0%, #dadada 50%, #d6d6d6 55.5%, #d4d4d4 100%);
+  clip-path: inset(0 0 0 0);
+  will-change: clip-path;
+}
+
+.loader__stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--stage-w);
+  height: var(--stage-h);
+  transform: translate(-50%, -50%);
+}
+
+.loader__robot {
+  position: absolute;
+  left: calc(var(--u) * 460);
+  top: calc(var(--u) * 290);
+  width: calc(var(--u) * 380);
+  height: calc(var(--u) * 240);
+  animation: robot-float 3s ease-in-out infinite;
+}
+
+.loader__robot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.loader__pct {
+  position: absolute;
+  left: 54.6%;
+  top: 51.5%;
+  transform: translate(-50%, -50%) perspective(calc(var(--u) * 300)) rotateY(30deg);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: calc(var(--u) * 17);
+  color: #fff;
+  letter-spacing: calc(var(--u) * 0.2);
+  white-space: nowrap;
+}
+
+@keyframes robot-float {
+  0%,
+  100% {
+    transform: translateY(calc(var(--u) * -3));
+  }
+  50% {
+    transform: translateY(calc(var(--u) * 4));
+  }
+}
+
+.loader__shadow {
+  position: absolute;
+  left: calc(var(--u) * 470);
+  top: calc(var(--u) * 470);
+  width: calc(var(--u) * 360);
+  height: calc(var(--u) * 40);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(150, 146, 143, 0.55), rgba(170, 166, 163, 0.25) 45%, rgba(190, 188, 186, 0) 100%);
+  filter: blur(calc(var(--u) * 3));
+}
+
+/* --------------------------------------------------------------------------
+   Curseur
+   -------------------------------------------------------------------------- */
+.cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 30;
+  pointer-events: none;
+  display: none;
+}
+
+.has-cursor .cursor {
+  display: block;
+}
+
+.cursor__ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  border: 1.6px solid var(--cursor-ring);
+  will-change: transform;
+  transition: border-color 0.35s ease, width 0.3s ease, height 0.3s ease, margin 0.3s ease;
+}
+
+.cursor__star {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  fill: var(--cursor-star);
+  will-change: transform;
+  transition: fill 0.35s ease;
+}
+
+.cursor.is-down .cursor__ring {
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+}
+
+.cursor.is-hidden {
+  opacity: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Etat de chargement : tout est masqué derrière le loader
+   -------------------------------------------------------------------------- */
+.is-loading .bubble {
+  opacity: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile / portrait : mise en page empilée
+   -------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 1/1) {
+  :root {
+    --u: calc(var(--vw) / 430);
+    --stage-w: var(--vw);
+    --stage-h: var(--vh);
+    --gx: 0px;
+  }
+
+  .nav {
+    top: calc(var(--u) * 26);
+    left: calc(var(--u) * 24);
+    right: calc(var(--u) * 24);
+    height: calc(var(--u) * 40);
+  }
+
+  .nav__logo {
+    width: calc(var(--u) * 24);
+    height: calc(var(--u) * 34);
+  }
+
+  .nav__links,
+  .nav__signin {
+    display: none;
+  }
+
+  .nav__cta {
+    width: calc(var(--u) * 116);
+    height: calc(var(--u) * 34);
+    border-radius: calc(var(--u) * 17);
+    font-size: calc(var(--u) * 10.5);
+  }
+
+  .hero__title {
+    left: calc(var(--u) * 26);
+    top: calc(var(--u) * 112);
+    font-size: calc(var(--u) * 54);
+    line-height: calc(var(--u) * 50);
+    letter-spacing: calc(var(--u) * -0.4);
+  }
+
+  .hero__desc {
+    left: calc(var(--u) * 27);
+    top: calc(var(--u) * 222);
+    width: calc(var(--u) * 340);
+    font-size: calc(var(--u) * 14);
+    line-height: calc(var(--u) * 20);
+  }
+
+  .br-d {
+    display: none;
+  }
+
+  .cta {
+    left: calc(var(--u) * 27);
+    top: calc(var(--u) * 318);
+    width: calc(var(--u) * 140);
+    height: calc(var(--u) * 44);
+    border-radius: calc(var(--u) * 22);
+  }
+
+  .cta__label {
+    font-size: calc(var(--u) * 12);
+  }
+
+  .uhf {
+    left: calc(var(--u) * 26);
+    top: calc(var(--u) * 104);
+    width: calc(var(--u) * 378);
+  }
+
+  .uhf__title {
+    font-size: calc(var(--u) * 34);
+    line-height: calc(var(--u) * 46);
+  }
+
+  .uhf__text p {
+    font-size: calc(var(--u) * 14.5);
+    line-height: calc(var(--u) * 23);
+    margin-bottom: calc(var(--u) * 16);
+  }
+
+  .more {
+    top: calc(var(--u) * 140);
+    height: calc(var(--u) * 30);
+    line-height: calc(var(--u) * 30);
+    padding: 0 calc(var(--u) * 18);
+    border-radius: calc(var(--u) * 15);
+    font-size: calc(var(--u) * 11.5);
+  }
+
+  .bottombar {
+    left: calc(var(--u) * 26);
+    right: calc(var(--u) * 26);
+    bottom: calc(var(--u) * 26);
+    height: calc(var(--u) * 46);
+  }
+
+  .colors {
+    gap: calc(var(--u) * 11);
+    transform: none;
+  }
+
+  .colors__label {
+    font-size: calc(var(--u) * 13);
+  }
+
+  .swatch {
+    width: calc(var(--u) * 20);
+    height: calc(var(--u) * 20);
+  }
+
+  .socials a {
+    width: calc(var(--u) * 20);
+    height: calc(var(--u) * 20);
+  }
+
+  .scrollhint {
+    bottom: calc(var(--u) * 92);
+  }
+
+  .bubble__box {
+    padding: calc(var(--u) * 5) calc(var(--u) * 9);
+    min-width: calc(var(--u) * 96);
+  }
+
+  .bubble__plate {
+    font-size: calc(var(--u) * 14.5);
+    line-height: calc(var(--u) * 16);
+    min-height: calc(var(--u) * 16);
+  }
+
+  .bubble__timer {
+    font-size: calc(var(--u) * 12.5);
+    line-height: calc(var(--u) * 15);
+  }
+
+  .loader__robot {
+    left: calc(50% - var(--u) * 190);
+    top: calc(50% - var(--u) * 140);
+    width: calc(var(--u) * 380);
+    height: calc(var(--u) * 240);
+  }
+
+  /* portrait : on agrandit la vidéo pour que la partie 3D occupe la largeur */
+  .scene--hero {
+    /* hauteur limitée par la place libre entre le bouton et l'indicateur de scroll */
+    --sh: min(calc(var(--vw) * 1.088), calc((var(--vh) - var(--u) * 550) / 0.64));
+    left: calc(var(--vw) * 0.5 - var(--sh) * 1400 / 856 * 0.72);
+    top: calc((var(--vh) + var(--u) * 224) / 2 - var(--sh) * 0.5625);
+    width: calc(var(--sh) * 1400 / 856);
+    height: var(--sh);
+  }
+
+  .scene--gate {
+    /* la borne (centre du cadre vers x = 0.30, y = 0.50) est centrée dans la place libre sous le texte */
+    --gw: calc(var(--vw) * 2.5);
+    left: calc(var(--vw) * 0.5 - var(--gw) * 0.3025);
+    top: calc((var(--vh) + var(--u) * 142) / 2 - var(--gw) * 856 / 1400 * 0.5);
+    width: var(--gw);
+    height: calc(var(--gw) * 856 / 1400);
+  }
+
+  .loader__shadow {
+    left: calc(50% - var(--u) * 170);
+    top: calc(50% + var(--u) * 40);
+    width: calc(var(--u) * 340);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrollhint__dot,
+  .nav__links a::after {
+    transition: none;
+  }
+}
