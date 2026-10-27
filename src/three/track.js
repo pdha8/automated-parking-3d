@@ -13,12 +13,104 @@ const EASES = {
   softin: (t) => t * t * t,
 };
 
-// accélération courte puis vitesse constante (pente continue)
+// accélération progressive (sans à-coup au démarrage ni en fin d'accélération)
+// puis vitesse constante
 function accel(a) {
   const k = 1 - a / 2;
-  return (t) => (t < a ? (t * t) / (2 * a * k) : (t - a / 2) / k);
+  return (t) => {
+    if (t >= a) return (t - a / 2) / k;
+    const u = t / a;
+    return ((a / k) * (u * u * u - (u * u * u * u) / 2));
+  };
 }
-EASES.accel = accel(0.14);
+EASES.accel = accel(0.2);
+// départ et arrêt avec accélération nulle aux extrémités
+EASES.smoother = (t) => t * t * t * (t * (6 * t - 15) + 10);
+
+/** Progression avec pentes imposées au début et à la fin (vitesse continue entre segments). */
+function hermite(s0, s1) {
+  return (t) => {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    return (t3 - 2 * t2 + t) * s0 + (-2 * t3 + 3 * t2) + (t3 - t2) * s1;
+  };
+}
+
+/** Même chose avec accélération nulle aux deux bouts (démarrage / arrêt en douceur). */
+function hermite5(s0, s1) {
+  return (t) => {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const t4 = t3 * t;
+    const t5 = t4 * t;
+    return s0 * (t - 6 * t3 + 8 * t4 - 3 * t5) + s1 * (-4 * t3 + 7 * t4 - 3 * t5) + (10 * t3 - 15 * t4 + 6 * t5);
+  };
+}
+
+/**
+ * Lisse la courbure d'un tracé : le cap (direction) est filtré le long de la
+ * distance parcourue (noyau gaussien d'écart-type sigma, en unités de scène),
+ * puis le tracé est reconstruit à partir de ce cap. Les virages restent au même
+ * endroit mais la direction ne peut plus tourner brusquement (jonctions de
+ * courbes, virages trop serrés). L'arrivée est recalée sur le point d'origine.
+ */
+function smoothCurve(curve, sigma) {
+  const n = 480;
+  const pts = curve.getSpacedPoints(n);
+  const L = curve.getLength();
+  const ds = L / n;
+  // cap de chaque petit tronçon (angle continu, sans saut de 2π)
+  const th = [];
+  for (let i = 0; i < n; i++) {
+    let a = Math.atan2(pts[i + 1].y - pts[i].y, pts[i + 1].x - pts[i].x);
+    if (i > 0) {
+      while (a - th[i - 1] > Math.PI) a -= Math.PI * 2;
+      while (a - th[i - 1] < -Math.PI) a += Math.PI * 2;
+    }
+    th.push(a);
+  }
+  // caps d'extrémité : tangente exacte de la courbe (et non la première corde)
+  const unwrap = (a, ref) => {
+    while (a - ref > Math.PI) a -= Math.PI * 2;
+    while (a - ref < -Math.PI) a += Math.PI * 2;
+    return a;
+  };
+  const t0 = curve.getTangentAt(0);
+  const t1 = curve.getTangentAt(1);
+  th[0] = unwrap(Math.atan2(t0.y, t0.x), th[0]);
+  th[n - 1] = unwrap(Math.atan2(t1.y, t1.x), th[n - 1]);
+  // filtrage gaussien ; au-delà des bords, réflexion impaire autour du cap
+  // d'extrémité : le cap de départ et d'arrivée reste exactement le même
+  const r = Math.max(1, Math.round((sigma / ds) * 3));
+  const w = [];
+  for (let k = -r; k <= r; k++) w.push(Math.exp(-0.5 * Math.pow((k * ds) / sigma, 2)));
+  const at = (j) => {
+    if (j < 0) return 2 * th[0] - th[Math.min(n - 1, -j)];
+    if (j > n - 1) return 2 * th[n - 1] - th[Math.max(0, 2 * (n - 1) - j)];
+    return th[j];
+  };
+  const sm = th.map((_, i) => {
+    let acc = 0;
+    let tot = 0;
+    for (let k = -r; k <= r; k++) {
+      acc += at(i + k) * w[k + r];
+      tot += w[k + r];
+    }
+    return acc / tot;
+  });
+  // reconstruction, puis recalage progressif sur le point d'arrivée
+  const out = [pts[0].clone()];
+  for (let i = 0; i < n; i++) out.push(new THREE.Vector2(out[i].x + Math.cos(sm[i]) * ds, out[i].y + Math.sin(sm[i]) * ds));
+  const ex = pts[n].x - out[n].x;
+  const ey = pts[n].y - out[n].y;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const f = t * t * (3 - 2 * t);
+    out[i].x += ex * f;
+    out[i].y += ey * f;
+  }
+  return new THREE.SplineCurve(out);
+}
 
 function toCurve(pts) {
   const v = pts.map(([x, z]) => new THREE.Vector2(x, z));
@@ -47,7 +139,18 @@ export class Track {
       if (s.pts || s.path) {
         seg.curve = s.path ? toPath(s.path) : toCurve(s.pts);
         seg.curve.arcLengthDivisions = 240;
+        if (s.smooth) {
+          seg.curve = smoothCurve(seg.curve, s.smooth);
+          seg.curve.arcLengthDivisions = 480;
+        }
         seg.length = seg.curve.getLength();
+        // vitesses imposées aux extrémités (u/s) : pas de saut de vitesse au raccord
+        if (s.v) {
+          const T = seg.t1 - seg.t0;
+          const s0 = (s.v[0] * T) / seg.length;
+          const s1 = (s.v[1] * T) / seg.length;
+          seg.ease = s.soft ? hermite5(s0, s1) : hermite(s0, s1);
+        }
       } else {
         seg.curve = null;
         seg.length = 0;

@@ -6,11 +6,12 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 // échantillonnée image par image) pour les rendre dans Blender.
 // Lancement : http://localhost:5173/?export
 
-export const FPS = 30;
+export const FPS = 60;
 export const LOOP = 9; // secondes
-export const FRAMES = FPS * LOOP; // 270
+export const FRAMES = FPS * LOOP; // 540
 // cadre rendu = scène 1280 x 776 + marges (pour les écrans plus larges / plus hauts)
-export const FRAME = { stageW: 1280, stageH: 776, marginX: 60, marginY: 40 };
+// cadre vidéo : maquette 1280x776 + marges (couvre les fenêtres larges et hautes)
+export const FRAME = { stageW: 1280, stageH: 776, marginX: 240, marginY: 92 };
 FRAME.w = FRAME.stageW + FRAME.marginX * 2;
 FRAME.h = FRAME.stageH + FRAME.marginY * 2;
 

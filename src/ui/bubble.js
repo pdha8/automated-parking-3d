@@ -5,14 +5,15 @@ import data from '../data/hero-bubble.json';
 // Sa position et son contenu sont enregistrés image par image lors de l'export
 // (src/dev/exporter.js) : elle suit exactement le robot rendu dans Blender.
 
-const FPS = 30;
-const FIRST_SCAN = 24; // image où la voiture arrivée à la borne est scannée
-const MARGIN_X = 60;
-const MARGIN_Y = 40;
-const FRAME_W = 1400;
-const FRAME_H = 856;
+const FPS = 60;
 const STAGE_W = 1280;
 const STAGE_H = 776;
+const FRAME_W = 1760; // cadre de la vidéo (maquette + marges), en pixels maquette
+const FRAME_H = 960;
+const MARGIN_X = (FRAME_W - STAGE_W) / 2;
+const MARGIN_Y = (FRAME_H - STAGE_H) / 2;
+// image où la voiture arrivée à la borne est scannée : le chrono repart de zéro
+const FIRST_SCAN = Math.max(1, data.findIndex((d, i) => i > 0 && d.t < data[i - 1].t));
 
 function charsHTML(list) {
   return list
@@ -46,7 +47,7 @@ export class BubbleOverlay {
   update(time, dt) {
     const n = data.length;
     const f = Math.min(n - 1, Math.max(0, Math.floor(time * FPS + 1e-3)));
-    if (this.prevFrame >= 0 && f < this.prevFrame - 10) this.firstPlay = false; // la vidéo a bouclé
+    if (this.prevFrame >= 0 && f < this.prevFrame - FPS / 3) this.firstPlay = false; // la vidéo a bouclé
     this.prevFrame = f;
     const st = data[f];
 

@@ -19,7 +19,10 @@ import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cars  # noqa: E402  (carrosseries modélisées dans Blender)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -28,7 +31,8 @@ WORK = os.path.join(HERE, "work")
 ACCENTS = {"teal": "#29bbba", "blue": "#277bc5", "green": "#27b938"}
 
 # zones utiles du cadre (x0, x1, y0, y1 ; origine en bas à gauche)
-BORDERS = {"hero": (0.42, 1.0, 0.0, 1.0), "gate": (0.0, 1.0, 0.05, 0.88)}
+# (la borne est rendue en entier : sa voiture part vers la droite et les ombres douces débordent)
+BORDERS = {"hero": (0.43, 1.0, 0.0, 1.0)}
 
 
 # --------------------------------------------------------------------------
@@ -49,12 +53,14 @@ def parse_args():
     p.add_argument("--scene", default="hero", choices=["hero", "gate", "loader"])
     p.add_argument("--accent", default="teal", choices=list(ACCENTS))
     p.add_argument("--dark", action="store_true")
-    p.add_argument("--frames", default="0-269")
+    p.add_argument("--frames", default=None, help="ex. 0-539 (par défaut : toute la boucle)")
     p.add_argument("--samples", type=int, default=96)
     p.add_argument("--scale", type=float, default=1.5, help="pixels par unité de maquette")
     p.add_argument("--out", default=None)
     p.add_argument("--still", action="store_true", help="une seule image (aperçu)")
     p.add_argument("--save-blend", action="store_true")
+    p.add_argument("--old-cars", action="store_true", help="garder les carrosseries exportées")
+    p.add_argument("--border", default=None, help="zone de rendu x0,x1,y0,y1 (aperçus)")
     return p.parse_args(argv)
 
 
@@ -106,7 +112,8 @@ def setup_render(scene, args, meta, transparent):
     scene.render.fps = meta.get("fps", 30)
     scene.render.film_transparent = transparent
     scene.render.use_motion_blur = not args.still
-    scene.render.motion_blur_shutter = 0.35
+    # obturateur à 180° en 60 i/s (0.35 image en 30 i/s, réglage d'origine)
+    scene.render.motion_blur_shutter = 0.5 if meta.get("fps", 30) >= 50 else 0.35
 
     scene.view_settings.view_transform = "Standard"
     scene.view_settings.look = "None"
@@ -468,6 +475,73 @@ def add_area_glow(scene_name):
 # --------------------------------------------------------------------------
 # scènes
 # --------------------------------------------------------------------------
+CAR_STYLES = {"car0": "mini", "car1": "mini", "gcar": "mini", "car-sedan": "sedan", "car-hatch": "hatch"}
+
+
+def _mat(name):
+    m = bpy.data.materials.get(name)
+    if m is None:
+        m = bpy.data.materials.new(name)
+        m.use_nodes = True
+    return m
+
+
+def rebuild_cars():
+    """Remplace la carrosserie exportée (formes extrudées) par les modèles arrondis
+    de cars.py. Roues, plaques et animation (nœuds) sont conservées."""
+    cache = {}
+    for root_name, style in CAR_STYLES.items():
+        root = bpy.data.objects.get(root_name)
+        if root is None:
+            continue
+        body = bpy.data.objects.get(f"{root_name}_body")
+        if body is None:  # voitures garées : nœud qui porte les vitres
+            body = next((c for c in root.children if any(m.type == "MESH" and any(mt and mt.name.startswith("glass") for mt in m.data.materials) for m in c.children)), None)
+        if body is None:
+            continue
+        meshes = [c for c in body.children_recursive if c.type == "MESH"]
+        names = {mt.name.split(".")[0] for c in meshes for mt in c.data.materials if mt}
+        plates = [c for c in meshes if any(mt and mt.name.startswith("plate") for mt in c.data.materials)]
+        paint = "paint" if "paint" in names else "whitePaint"
+        mats = {
+            "paint": _mat(paint),
+            "roof": _mat("roof"),
+            "glass": _mat("glass"),
+            "chrome": _mat("chrome"),
+            "dark": _mat("dark"),
+            "lamp": _mat("lamp" if "lamp" in names else "lampOff"),
+            "tail": _mat("tail" if "tail" in names else "tailOff"),
+        }
+        for c in meshes:
+            if c not in plates:
+                bpy.data.objects.remove(c, do_unlink=True)
+        key = (style, paint, mats["lamp"].name, mats["tail"].name)
+        if key not in cache:
+            objs, bvh = cars.build(style, mats, f"{style}_{len(cache)}")
+            # placement de chaque pièce dans le repère de la voiture
+            cache[key] = (objs, bvh, [o.matrix_world.copy() for o in objs])
+            parts = list(zip(objs, cache[key][2]))
+        else:
+            objs, bvh, locals_ = cache[key]
+            parts = []
+            for o, m in zip(objs, locals_):
+                d = o.copy()  # maillage partagé
+                d.parent = None
+                bpy.context.scene.collection.objects.link(d)
+                parts.append((d, m))
+        for o, local in parts:
+            o.parent = body
+            o.matrix_parent_inverse = Matrix.Identity(4)
+            o.matrix_basis = local
+        # plaques d'origine posées sur la nouvelle carrosserie
+        for pl in plates:
+            rear = pl.location.y > 0
+            loc, nor = cars.plate_spot(style, bvh, rear)
+            if loc is not None:
+                pl.location = loc + nor * 0.004
+        print("CAR", root_name, style, paint, len(parts), "pièces")
+
+
 def build_scene(args):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
@@ -479,12 +553,16 @@ def build_scene(args):
     bpy.ops.import_scene.gltf(filepath=os.path.join(folder, f"{args.scene}.glb"))
     for o in bpy.data.objects:
         o.select_set(False)
+    if not args.old_cars:
+        rebuild_cars()
 
     dark = args.dark
     transparent = not dark
     setup_render(scene, args, meta, transparent)
     # en mode jour, seule la zone qui contient la 3D est calculée (le reste est transparent)
     border = None if dark else BORDERS.get(args.scene)
+    if args.border:
+        border = tuple(float(v) for v in args.border.split(","))
     if border:
         scene.render.use_border = True
         scene.render.use_crop_to_border = False
@@ -552,7 +630,8 @@ def main():
     os.makedirs(out, exist_ok=True)
     if args.save_blend:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.join(out, f"{name}.blend"))
-    a, b = (int(x) for x in args.frames.split("-")) if "-" in args.frames else (int(args.frames), int(args.frames))
+    frames = args.frames or f"0-{meta['frames'] - 1}"
+    a, b = (int(x) for x in frames.split("-")) if "-" in frames else (int(frames), int(frames))
     if args.still:
         scene.frame_set(a)
         scene.render.filepath = os.path.join(out, f"still_{a:04d}.png")

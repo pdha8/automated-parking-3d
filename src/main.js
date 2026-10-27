@@ -7,6 +7,7 @@ import '@fontsource/montserrat/latin-300.css';
 import '@fontsource/montserrat/latin-400.css';
 import '@fontsource/montserrat/latin-700.css';
 import './styles/main.css';
+import './styles/pages.css';
 
 import gsap from 'gsap';
 import { Loader } from './ui/loader.js';
@@ -16,6 +17,8 @@ import { HeroUI } from './ui/hero.js';
 import { UhfSection } from './ui/uhf.js';
 import { VideoScene } from './ui/videoScene.js';
 import { BubbleOverlay } from './ui/bubble.js';
+import { Reveal } from './ui/reveal.js';
+import { SignIn } from './ui/signin.js';
 import { theme, initTheme, setTheme, onThemeChange } from './core/theme.js';
 
 const params = new URLSearchParams(location.search);
@@ -97,11 +100,17 @@ async function boot() {
   // ---- sections
   const sectionsEl = document.getElementById('sections');
   let introOffset = 0;
+  // pages du menu (Features, Resources, Enterprise, Pricing) : apparition en cascade
+  const sectionEls = [...sectionsEl.querySelectorAll('.section')];
+  const reveals = sectionEls.map((el, i) => (i >= 2 ? new Reveal(el) : null));
+  const navLinks = [...document.querySelectorAll('.nav__links [data-goto]')];
+  const setActiveNav = (i) => navLinks.forEach((a) => a.classList.toggle('is-active', Number(a.dataset.goto) === i));
   const sections = new Sections({
     container: sectionsEl,
-    count: 2,
+    count: sectionEls.length,
     onStart(next) {
       document.documentElement.classList.toggle('is-last', next === sections.count - 1);
+      setActiveNav(next);
       if (next === 1) {
         gateScene.play(true);
         uhf.enter();
@@ -110,18 +119,33 @@ async function boot() {
         heroScene.play(true); // la boucle du parking reprend au début (comme la vidéo)
         bubble.reset();
       }
+      reveals[next]?.enter();
     },
     onComplete(next, prev) {
-      if (next === 1) heroScene.pause();
-      if (next === 0) gateScene.pause();
-      if (prev === 1 && next === 0) uhf.reset();
+      if (next !== 0) heroScene.pause();
+      if (next !== 1) gateScene.pause();
+      if (prev === 1 && next !== 1) uhf.reset();
+      if (prev !== next) reveals[prev]?.reset();
     },
   });
+
+  // connexion (démonstration) : le défilement des sections est suspendu pendant l'ouverture
+  const signin = new SignIn(document.getElementById('signin'), {
+    onOpen: () => (sections.enabled = false),
+    onClose: () => (sections.enabled = true),
+  });
+  document.querySelectorAll('[data-signin]').forEach((el) =>
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      signin.open();
+    }),
+  );
 
   // navigation
   document.querySelectorAll('[data-goto]').forEach((el) =>
     el.addEventListener('click', (e) => {
       e.preventDefault();
+      if (signin.isOpen) signin.close();
       sections.goTo(parseInt(el.dataset.goto, 10));
     }),
   );
@@ -184,8 +208,9 @@ async function boot() {
     document.body.classList.remove('is-loading');
     sections.enabled = true;
     heroScene.play(true);
-    if (params.get('section') === '1') {
-      sections.goTo(1);
+    const start = parseInt(params.get('section'), 10);
+    if (start > 0) {
+      sections.goTo(start);
       sections.update(10);
     }
   } else {

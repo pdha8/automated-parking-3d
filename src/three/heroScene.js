@@ -5,7 +5,7 @@ import { createRobot } from './models/robot.js';
 import { createBollards, createMachine, createBoard, createPSign, createBump, createRail, createGateCable } from './models/props.js';
 import { ContactShadows } from './contactShadows.js';
 import { radialTexture } from './textures.js';
-import { Track } from './track.js';
+import { buildTrack } from './heroTrack.js';
 import { Typewriter } from '../core/typewriter.js';
 import { clamp, damp, dampAngle, smoothstep, lerp } from '../core/ease.js';
 
@@ -96,41 +96,6 @@ export const LAYOUT = {
   exitMachine: [6.36, -0.09],
   exitBump: [7.15, 1.6],
 };
-
-// Trajectoire d'une voiture (temps τ relatif à son arrivée à la borne d'entrée)
-function buildTrack() {
-  return new Track([
-    // arrivée en diagonale depuis le bas à droite (hors champ), freinage jusqu'à la borne d'entrée
-    { t: [-1.5, 0], pts: [[2.35, 11.79], [-0.15, 7.72]], ease: 'softout' },
-    // avance au pas pendant l'impression du ticket
-    { t: [0, 1.5], pts: [[-0.15, 7.72], [-0.33, 7.43]], ease: 'linear' },
-    // entre dans le parking, se redresse puis tourne vers la place du milieu
-    {
-      t: [1.5, 3.9],
-      path: [
-        [[-0.33, 7.43], [-0.68, 6.86], [-0.16, 6.45], [-0.13, 5.9]],
-        [[-0.13, 5.9], [-0.12, 5.6], [0.34, 5.36], [0.52, 5.12]],
-        [[0.52, 5.12], [0.76, 4.8], [1.4, 4.67], [1.84, 4.6]],
-      ],
-      ease: 'inout',
-    },
-    // garée
-    { t: [3.9, 4.6], hold: true },
-    // marche arrière en braquant sec : l'arrière part vers la caméra
-    { t: [4.6, 6.05], pts: [[1.84, 4.6], [1.05, 4.72], [0.47, 4.8], [0.25, 5.15]], reverse: true, ease: 'inout' },
-    { t: [6.05, 7.8], hold: true },
-    // repart vers le robot, tourne à droite et longe la rangée du haut jusqu'à la sortie
-    {
-      t: [7.8, 12.1],
-      path: [
-        [[0.25, 5.15], [0.62, 4.5], [0.12, 2.35], [0.8, 2.0]],
-        [[0.8, 2.0], [1.6, 1.69], [3.4, 1.6], [4.74, 1.6]],
-        [[4.74, 1.6], [11.0, 1.52]],
-      ],
-      ease: 'accel',
-    },
-  ]);
-}
 
 export class HeroScene {
   constructor(stage) {

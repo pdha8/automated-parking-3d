@@ -163,11 +163,12 @@ button:focus-visible {
 /* ----- Rendu 3D (vidéos Blender en boucle) -----
    Le cadre rendu = la scène 1280x776 + marges (60 / 40), centré comme .stage */
 .scene {
+  /* cadre de la vidéo : maquette 1280 x 776 + marges, en pixels maquette */
   position: absolute;
-  left: calc(50% - var(--u) * 700);
-  top: calc(50% - var(--u) * 428);
-  width: calc(var(--u) * 1400);
-  height: calc(var(--u) * 856);
+  left: calc(50% - var(--u) * 880);
+  top: calc(50% - var(--u) * 480);
+  width: calc(var(--u) * 1760);
+  height: calc(var(--u) * 960);
   pointer-events: none;
   will-change: transform;
   /* bords fondus : raccord invisible avec le fond de page */
@@ -196,12 +197,6 @@ button:focus-visible {
   opacity: 1;
 }
 
-/* vidéos de jour de la borne : Blender ne calcule pas le bas du cadre (vide) ;
-   le bord de la zone calculée est fondu dans le fond de page */
-.scene--gate video:not([data-variant='dark']) {
-  -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent 94.5%);
-  mask-image: linear-gradient(to bottom, #000 90%, transparent 94.5%);
-}
 
 /* ----- Hero ----- */
 .hero__title {
@@ -950,19 +945,21 @@ button:focus-visible {
   .scene--hero {
     /* hauteur limitée par la place libre entre le bouton et l'indicateur de scroll */
     --sh: min(calc(var(--vw) * 1.088), calc((var(--vh) - var(--u) * 550) / 0.64));
-    left: calc(var(--vw) * 0.5 - var(--sh) * 1400 / 856 * 0.72);
-    top: calc((var(--vh) + var(--u) * 224) / 2 - var(--sh) * 0.5625);
-    width: calc(var(--sh) * 1400 / 856);
-    height: var(--sh);
+    /* --sh : hauteur de l'ancien cadre (856) ; ancrage du parking en x = 1188, y = 533.5 du cadre */
+    left: calc(var(--vw) * 0.5 - var(--sh) * 1188 / 856);
+    top: calc((var(--vh) + var(--u) * 224) / 2 - var(--sh) * 533.5 / 856);
+    width: calc(var(--sh) * 1760 / 856);
+    height: calc(var(--sh) * 960 / 856);
   }
 
   .scene--gate {
-    /* la borne (centre du cadre vers x = 0.30, y = 0.50) est centrée dans la place libre sous le texte */
+    /* la borne (x = 603.5, y = 480 du cadre) est centrée dans la place libre sous le texte ;
+       --gw : largeur de l'ancien cadre (1400) */
     --gw: calc(var(--vw) * 2.5);
-    left: calc(var(--vw) * 0.5 - var(--gw) * 0.3025);
-    top: calc((var(--vh) + var(--u) * 142) / 2 - var(--gw) * 856 / 1400 * 0.5);
-    width: var(--gw);
-    height: calc(var(--gw) * 856 / 1400);
+    left: calc(var(--vw) * 0.5 - var(--gw) * 603.5 / 1400);
+    top: calc((var(--vh) + var(--u) * 142) / 2 - var(--gw) * 480 / 1400);
+    width: calc(var(--gw) * 1760 / 1400);
+    height: calc(var(--gw) * 960 / 1400);
   }
 
   .loader__shadow {
