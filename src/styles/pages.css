@@ -267,12 +267,54 @@
   aspect-ratio: 760 / 480;
 }
 
-.enterprise__robot img {
+.ebot {
   position: relative;
+  animation: robot-float 4.2s ease-in-out infinite;
+}
+
+.ebot img {
   display: block;
   width: 100%;
   height: auto;
-  animation: robot-float 4.2s ease-in-out infinite;
+}
+
+/* yeux bleus lumineux sur la visière, comme les robots des scènes 3D (avec un clignement) */
+.ebot__eye {
+  position: absolute;
+  top: 53.6%;
+  width: 1.9%;
+  height: 4.4%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 44% 36%, #eef4ff 0 14%, #5d97ff 34%, #2f62ff 62%, rgba(47, 98, 255, 0) 100%);
+  box-shadow: 0 0 calc(var(--u) * 7) calc(var(--u) * 1.5) rgba(72, 124, 255, 0.5);
+  transform: translate(-50%, -50%);
+  animation: ebot-blink 4.6s ease-in-out infinite;
+}
+
+.ebot__eye:first-of-type {
+  left: 52%;
+}
+
+.ebot__eye:last-of-type {
+  left: 57.4%;
+}
+
+@keyframes ebot-blink {
+  0%,
+  93%,
+  100% {
+    transform: translate(-50%, -50%) scaleY(1);
+  }
+  96% {
+    transform: translate(-50%, -50%) scaleY(0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ebot,
+  .ebot__eye {
+    animation: none;
+  }
 }
 
 .enterprise__shadow {

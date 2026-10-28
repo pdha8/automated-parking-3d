@@ -177,16 +177,23 @@ export function createPSign() {
 /* --------------------------------------------------------------------------
    Ralentisseur rayé (capsule couchée)
    -------------------------------------------------------------------------- */
+// capsule aplatie : dôme bas et large (10 cm de haut, 32 cm de large), comme sur la vidéo
+export const BUMP = { r: 0.105, y: 0.045, sy: 0.667, sz: 1.52 };
+
 export function createBump(length = 1.4, stripes = 6) {
   const g = new THREE.Group();
   g.name = 'bump';
-  const R = 0.105;
-  mesh(capsule(R, length, 'x', 10, 24), MAT.accent, g, 0, R * 0.62, 0);
+  g.userData.bumpLength = length;
+  const R = BUMP.r;
+  const shape = new THREE.Group();
+  shape.scale.set(1, BUMP.sy, BUMP.sz);
+  g.add(shape);
+  mesh(capsule(R, length, 'x', 10, 24), MAT.accent, shape, 0, BUMP.y, 0);
   const ringGeo = new THREE.TorusGeometry(R * 1.005, 0.0085, 6, 32);
   ringGeo.rotateY(Math.PI / 2);
   for (let i = 0; i < stripes; i++) {
     const x = -length / 2 + R * 1.6 + (i / (stripes - 1)) * (length - R * 3.2);
-    const ring = mesh(ringGeo, MAT.white, g, x, R * 0.62, 0, { cast: false });
+    const ring = mesh(ringGeo, MAT.white, shape, x, BUMP.y, 0, { cast: false });
     ring.rotation.z = 0.32;
   }
   return g;

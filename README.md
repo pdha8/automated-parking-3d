@@ -33,6 +33,13 @@ l'animation continue sans saut.
 
 <img src="docs/images/mobile.jpg" alt="Version mobile" width="520">
 
+### Pages du menu
+
+Features, Resources, Enterprise et Pricing : les éléments apparaissent en cascade à
+l'arrivée sur la page.
+
+![Pages Features, Resources, Enterprise et Pricing](docs/images/pages.jpg)
+
 ### Rendu Blender
 
 Mode nuit : faisceaux des phares, écrans lumineux, ombres douces (Cycles + OptiX).
@@ -53,6 +60,9 @@ Mode nuit : faisceaux des phares, écrans lumineux, ombres douces (Cycles + Opti
 - Voitures arrondies façon jouet modélisées dans Blender (surfaces subdivisées)
 - Trajectoires lissées : vitesse continue, virages progressifs, voitures qui entrent
   et sortent hors du cadre
+- Ralentisseurs bas et larges : les roues montent dessus et la caisse suit (tangage,
+  roulis) au lieu de les traverser
+- Boucle vidéo sans raccord visible (roues, robot et écrans reviennent à l'identique)
 - Version mobile adaptée
 
 ## Lancer le site
@@ -117,7 +127,8 @@ bash blender/render_all.sh
 Variantes : `hero_teal`, `hero_blue`, `hero_green`, `hero_teal_dark` et la même
 chose pour `gate_*` (section « UHF identification »). On peut en passer une
 partie en argument, par exemple `bash blender/render_all.sh hero_teal`.
-Compter environ 25 à 30 min par variante (540 images) avec une RTX 4060.
+Avec une RTX 4060, compter environ 25 min par variante du parking et 35 à 40 min
+par variante de la borne (540 images chacune), soit un peu plus de 4 h pour les 8.
 
 4. Images fixes affichées si la lecture automatique est bloquée (première image
    de chaque vidéo) :
@@ -145,6 +156,7 @@ ancienne, citadine ronde) ; `--old-cars` garde les anciennes.
 | Pages du menu (apparition en cascade) | `index.html`, `src/styles/pages.css`, `src/ui/reveal.js` |
 | Fenêtre de connexion (démo) | `src/ui/signin.js` |
 | Trajectoire des voitures du parking | `src/three/heroTrack.js`, `src/three/track.js` |
+| Roues et caisse sur les ralentisseurs | `src/three/bumps.js` |
 | Texte « UHF identification » + « see more » | `src/ui/uhf.js` |
 | Curseur étoile + anneau | `src/ui/cursor.js` |
 | Scènes 3D source (Three.js) utilisées pour l'export | `src/three/` |

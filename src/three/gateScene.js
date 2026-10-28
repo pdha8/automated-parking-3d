@@ -4,6 +4,7 @@ import { createCar, setBeamIntensity, FX_LAYER, WHEEL_R } from './models/car.js'
 import { createRobot } from './models/robot.js';
 import { createMachine, createBoard, createBump, createGateCable } from './models/props.js';
 import { ContactShadows } from './contactShadows.js';
+import { BumpField } from './bumps.js';
 import { radialTexture } from './textures.js';
 import { Typewriter } from '../core/typewriter.js';
 import { damp, dampAngle, lerp, smoothstep, clamp } from '../core/ease.js';
@@ -17,6 +18,14 @@ import { plateRuns, blinkAmount, LIGHT, NIGHT } from './heroScene.js';
 
 const CYCLE = 9; // s
 const STOP_X = -0.1;
+// trajet de la voiture : sortie vers la droite (x = 12 à s = 5.4), retour depuis la gauche
+const EXIT_D = 1.25 ** 3 * 6.2;
+const APPROACH_D = 6.5;
+// roues : un nombre entier de tours par boucle (le complément se fait voiture cachée),
+// les rayons sont donc au même angle au début et à la fin de la vidéo
+const TURN = 2 * Math.PI * WHEEL_R;
+const LOOP_D = Math.ceil((EXIT_D + APPROACH_D) / TURN) * TURN;
+const WHEEL_PHASE = 3.2504447; // angle des rayons à l'arrêt
 
 // voitures qui passent la borne de sortie (la première est celle de la vidéo)
 const GATE_CARS = [
@@ -109,6 +118,8 @@ export class GateScene {
     bump.rotation.y = Math.PI / 2 + 0.07;
     bump.position.set(BUMP_X, 0, 1.02);
     scene.add(bump);
+    this.bumps = new BumpField();
+    this.bumps.add(bump);
 
     // voiture
     this.car = createCar({ style: 'mini', paint: MAT.paint, roof: MAT.roof, plate: 'KA6919EN', active: true });
@@ -146,6 +157,8 @@ export class GateScene {
     this.time = 0;
     this._desired = null;
     this._prevX = STOP_X;
+    this._pitch = 0;
+    this._ride = { lift: 0, pitch: 0, roll: 0 };
 
     this.resize(1280, 776);
   }
@@ -217,14 +230,21 @@ export class GateScene {
     // ---- voiture : arrêt -> départ vers la droite -> nouvelle voiture depuis la gauche
     // (elle n'est cachée qu'une fois entièrement sortie du cadre : x = 12 à s = 5.4)
     let x;
-    if (s < 2.4) x = STOP_X;
-    else if (s < 5.4) {
+    let rolled; // distance roulée depuis le début du cycle
+    if (s < 2.4) {
+      x = STOP_X;
+      rolled = 0;
+    } else if (s < 5.4) {
       const k = (s - 2.4) / 2.4;
       x = STOP_X + k * k * k * 6.2;
-    } else if (s < 5.6) x = 99; // hors champ
-    else {
+      rolled = x - STOP_X;
+    } else if (s < 5.6) {
+      x = 99; // hors champ
+      rolled = s < 5.5 ? EXIT_D : LOOP_D - APPROACH_D;
+    } else {
       const k = clamp((s - 5.6) / (CYCLE - 5.6));
-      x = STOP_X - (1 - k) * (1 - k) * (1 - k) * 6.5;
+      x = STOP_X - (1 - k) * (1 - k) * (1 - k) * APPROACH_D;
+      rolled = LOOP_D - (STOP_X - x);
     }
     const nextData = this.loopData || (s >= 5.6 ? gateCar(this.cycle + 1) : data);
     if (this._plate !== nextData.plate) {
@@ -233,14 +253,16 @@ export class GateScene {
     }
     const car = this.car;
     car.group.visible = x < 50;
+    for (const w of car.wheels) w.rotation.x = WHEEL_PHASE + rolled / WHEEL_R;
     if (car.group.visible) {
       car.group.position.x = x;
       const dx = x - this._prevX;
-      for (const w of car.wheels) w.rotation.x += dx / WHEEL_R;
-      // petit "saut" quand les roues passent sur le ralentisseur
-      const over = Math.exp(-Math.pow((x + 0.53 - BUMP_X) / 0.12, 2)) * 0.035 + Math.exp(-Math.pow((x - 0.53 - BUMP_X) / 0.12, 2)) * 0.035;
-      car.body.position.y = over;
-      car.body.rotation.x = damp(car.body.rotation.x, clamp(-(dx / Math.max(dt, 1e-4) - (car._v || 0)) * 0.004, -0.03, 0.03), 6, dt);
+      // roues sur le ralentisseur, caisse qui suit ; léger tangage à l'accélération
+      const ride = this.bumps.ride(car, this._ride);
+      this._pitch = damp(this._pitch, clamp(-(dx / Math.max(dt, 1e-4) - (car._v || 0)) * 0.004, -0.03, 0.03), 6, dt);
+      car.body.position.y = ride.lift;
+      car.body.rotation.x = this._pitch + ride.pitch;
+      car.body.rotation.z = ride.roll;
       car._v = dx / Math.max(dt, 1e-4);
     }
     this._prevX = x;

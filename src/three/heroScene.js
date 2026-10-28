@@ -6,6 +6,7 @@ import { createBollards, createMachine, createBoard, createPSign, createBump, cr
 import { ContactShadows } from './contactShadows.js';
 import { radialTexture } from './textures.js';
 import { buildTrack } from './heroTrack.js';
+import { BumpField } from './bumps.js';
 import { Typewriter } from '../core/typewriter.js';
 import { clamp, damp, dampAngle, smoothstep, lerp } from '../core/ease.js';
 
@@ -89,7 +90,7 @@ export const LAYOUT = {
   bottomRow: [[0.89, 6.42], [1.67, 6.48], [2.51, 6.45]],
   sedan: [2.2, 3.12, -Math.PI / 2 - 0.06],
   hatch: [2.14, 5.68, -Math.PI / 2 - 0.03],
-  rail: { x: 3.58, z0: 1.9, z1: 8.6 },
+  rail: { x: 3.58, z0: 2.25, z1: 8.6 }, // commence après le passage des roues vers la sortie
   pSign: [3.9, 4.04],
   rightBollards: [[4.41, 2.11], [4.38, 3.93], [5.84, 2.11], [5.85, 3.95], [4.36, 5.75], [5.86, 5.8]],
   exitBoard: [5.27, -0.02],
@@ -249,6 +250,8 @@ export class HeroScene {
     const bump = createBump(L.entryBumpLen, 6);
     bump.position.set(L.entryBump[0], 0, L.entryBump[1]);
     s.add(bump);
+    this.bumps = new BumpField();
+    this.bumps.add(bump);
 
     // borne de sortie : panneau sur poteau + borne à reçu reliée par un câble
     const gate = new THREE.Group();
@@ -270,6 +273,7 @@ export class HeroScene {
     exitBump.rotation.y = Math.PI / 2;
     exitBump.position.set(L.exitBump[0], 0, L.exitBump[1]);
     s.add(exitBump);
+    this.bumps.add(exitBump);
 
     const p = createPSign();
     p.position.set(L.pSign[0], 0, L.pSign[1]);
@@ -481,8 +485,11 @@ export class HeroScene {
       c.roll = damp(c.roll || 0, clamp(-speed * (dh / Math.max(1e-4, Math.abs(ds))) * 0.02, -0.03, 0.03), 6, dt);
     }
     for (const s of c.steer) s.rotation.y = c.steerAngle;
-    c.body.rotation.x = c.pitch;
-    c.body.rotation.z = c.roll || 0;
+    // roues sur les ralentisseurs, caisse qui suit
+    const ride = this.bumps.ride(c, c.ride || (c.ride = { lift: 0, pitch: 0, roll: 0 }));
+    c.body.position.y = ride.lift;
+    c.body.rotation.x = c.pitch + ride.pitch;
+    c.body.rotation.z = (c.roll || 0) + ride.roll;
     c.prevPose = { dist: p.dist, heading: p.heading };
     c.setNight(night.value);
   }
